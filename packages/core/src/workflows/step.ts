@@ -2,6 +2,8 @@ import type { MastraScorers } from '../evals';
 import type { PubSub } from '../events';
 import type { Mastra } from '../mastra';
 import type { TracingContext } from '../observability';
+import type { LoggerContext } from '../observability/types/logging';
+import type { MetricsContext } from '../observability/types/metrics';
 import type { RequestContext } from '../request-context';
 import type { InferZodLikeSchema, SchemaWithValidation } from '../stream/base/schema';
 import type { ToolStream } from '../tools/stream';
@@ -41,6 +43,12 @@ export type ExecuteFunctionParams<
   suspendData?: TSuspend;
   retryCount: number;
   tracingContext: TracingContext;
+  /** @deprecated Use `tracing` instead */
+  tracing?: TracingContext;
+  /** Logger for structured logging with trace correlation */
+  logger?: LoggerContext;
+  /** Metrics for counters, gauges, histograms */
+  metrics?: MetricsContext;
   getInitData<T>(): T extends Workflow<any, any, any, any, any, any, any> ? InferZodLikeSchema<T['inputSchema']> : T;
   getStepResult<TOutput>(step: string): TOutput;
   getStepResult<TStep extends Step<string, any, any, any, any, any, EngineType>>(
