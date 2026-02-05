@@ -18,6 +18,10 @@ import type { MCPServerBase } from '../mcp';
 import type { MastraMemory } from '../memory';
 import type { ObservabilityEntrypoint } from '../observability';
 import { NoOpObservability } from '../observability';
+import { noOpLoggerContext, noOpMetricsContext } from '../observability/no-op/context';
+import type { LoggerContext } from '../observability/types/logging';
+import type { MetricsContext } from '../observability/types/metrics';
+import type { Trace } from '../observability/types/tracing';
 import type { Processor } from '../processors';
 import type { MastraServerBase } from '../server/base';
 import type { Middleware, ServerConfig } from '../server/types';
@@ -2237,6 +2241,35 @@ export class Mastra<
 
   get observability(): ObservabilityEntrypoint {
     return this.#observability;
+  }
+
+  /**
+   * Structured logging API for observability.
+   * Logs emitted via this API will not have trace correlation when used outside a span.
+   * Use for startup logs, background jobs, or other non-traced scenarios.
+   *
+   * Note: For the infrastructure logger (IMastraLogger), use getLogger() instead.
+   */
+  get log(): LoggerContext {
+    return noOpLoggerContext; // TODO: PR 1.2 - return configured logger
+  }
+
+  /**
+   * Direct metrics API for use outside trace context.
+   * Metrics emitted via this API will not have auto-labels from spans.
+   * Use for background jobs, startup metrics, or other non-traced scenarios.
+   */
+  get metrics(): MetricsContext {
+    return noOpMetricsContext; // TODO: PR 1.2 - return configured metrics
+  }
+
+  /**
+   * Retrieve a trace for post-hoc score/feedback attachment.
+   * Returns null if trace not found or storage not configured.
+   */
+  async getTrace(_traceId: string): Promise<Trace | null> {
+    // TODO: PR 1.2 - implement trace retrieval from storage
+    return null;
   }
 
   public getServerMiddleware() {
