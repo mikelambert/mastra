@@ -7,6 +7,10 @@ import type { Mastra } from '../../mastra';
 import type { RequestContext } from '../../request-context';
 import type { LanguageModelUsage, ProviderMetadata, StepStartPayload } from '../../stream/types';
 import type { WorkflowRunStatus, WorkflowStepStatus } from '../../workflows';
+import type { FeedbackInput, FeedbackEvent } from './feedback';
+import type { LogEvent } from './logging';
+import type { MetricEvent } from './metrics';
+import type { ScoreInput, ScoreEvent } from './scores';
 
 // ============================================================================
 // Span Types
@@ -503,6 +507,18 @@ export interface Span<TType extends SpanType> extends BaseSpan<TType> {
    * ```
    */
   executeInContextSync<T>(fn: () => T): T;
+
+  /**
+   * Add a quality score to this span.
+   * Scores are emitted via the ObservabilityBus and can be persisted/exported.
+   */
+  addScore(score: ScoreInput): void;
+
+  /**
+   * Add user feedback to this span.
+   * Feedback is emitted via the ObservabilityBus and can be persisted/exported.
+   */
+  addFeedback(feedback: FeedbackInput): void;
 }
 
 export interface BridgeSpanContext {
@@ -596,6 +612,41 @@ export type AnySpan = Span<keyof SpanTypeMap>;
  * Union type for cases that need to handle any exported span
  */
 export type AnyExportedSpan = ExportedSpan<keyof SpanTypeMap>;
+
+// ============================================================================
+// Trace Interface
+// ============================================================================
+
+/**
+ * Trace represents a complete execution trace with all its spans.
+ * Used for post-hoc score/feedback attachment via mastra.getTrace().
+ */
+export interface Trace {
+  /** The trace identifier */
+  readonly traceId: string;
+
+  /** All spans in this trace */
+  readonly spans: ReadonlyArray<AnySpan>;
+
+  /**
+   * Get a specific span by ID.
+   * @param spanId - The span identifier
+   * @returns The span if found, null otherwise
+   */
+  getSpan(spanId: string): AnySpan | null;
+
+  /**
+   * Add a score at the trace level.
+   * Uses root span's metadata for context inheritance.
+   */
+  addScore(score: ScoreInput): void;
+
+  /**
+   * Add feedback at the trace level.
+   * Uses root span's metadata for context inheritance.
+   */
+  addFeedback(feedback: FeedbackInput): void;
+}
 
 // ============================================================================
 // Tracing Interfaces
@@ -1127,6 +1178,18 @@ export interface ObservabilityExporter {
 
   /** Shutdown exporter */
   shutdown(): Promise<void>;
+
+  /** Handle log events */
+  onLogEvent?(event: LogEvent): void | Promise<void>;
+
+  /** Handle metric events */
+  onMetricEvent?(event: MetricEvent): void | Promise<void>;
+
+  /** Handle score events */
+  onScoreEvent?(event: ScoreEvent): void | Promise<void>;
+
+  /** Handle feedback events */
+  onFeedbackEvent?(event: FeedbackEvent): void | Promise<void>;
 }
 
 /**
