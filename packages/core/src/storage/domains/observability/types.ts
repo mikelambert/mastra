@@ -26,6 +26,25 @@ import {
 export type TracingStorageStrategy = 'realtime' | 'batch-with-updates' | 'insert-only';
 
 // ============================================================================
+// Storage Strategy Types
+// ============================================================================
+
+/** Logs storage strategies */
+export type LogsStorageStrategy = 'realtime' | 'batch';
+
+/** Metrics storage strategies */
+export type MetricsStorageStrategy = 'realtime' | 'batch';
+
+/** Scores storage strategies */
+export type ScoresStorageStrategy = 'realtime' | 'batch';
+
+/** Feedback storage strategies */
+export type FeedbackStorageStrategy = 'realtime' | 'batch';
+
+/** Helper type for strategy getter return values */
+export type StrategyHint<T> = { preferred: T; supported: T[] } | null;
+
+// ============================================================================
 // Helper utilities for creating omit key objects from schema shapes
 // ============================================================================
 

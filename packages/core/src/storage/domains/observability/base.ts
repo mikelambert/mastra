@@ -5,6 +5,7 @@ import type {
   BatchDeleteTracesArgs,
   BatchUpdateSpansArgs,
   CreateSpanArgs,
+  FeedbackStorageStrategy,
   GetRootSpanArgs,
   GetRootSpanResponse,
   GetSpanArgs,
@@ -13,6 +14,10 @@ import type {
   GetTraceResponse,
   ListTracesArgs,
   ListTracesResponse,
+  LogsStorageStrategy,
+  MetricsStorageStrategy,
+  ScoresStorageStrategy,
+  StrategyHint,
   TracingStorageStrategy,
   UpdateSpanArgs,
 } from './types';
@@ -45,6 +50,42 @@ export class ObservabilityStorage extends StorageDomain {
       preferred: 'batch-with-updates', // Default for most SQL stores
       supported: ['realtime', 'batch-with-updates', 'insert-only'],
     };
+  }
+
+  /**
+   * Logs storage strategy hint.
+   * Returns null by default (logs not supported).
+   * Override in adapters that support log storage.
+   */
+  public get logsStrategy(): StrategyHint<LogsStorageStrategy> {
+    return null;
+  }
+
+  /**
+   * Metrics storage strategy hint.
+   * Returns null by default (metrics not supported).
+   * Override in adapters that support metric storage.
+   */
+  public get metricsStrategy(): StrategyHint<MetricsStorageStrategy> {
+    return null;
+  }
+
+  /**
+   * Scores storage strategy hint.
+   * Returns null by default (scores not supported).
+   * Override in adapters that support score storage.
+   */
+  public get scoresStrategy(): StrategyHint<ScoresStorageStrategy> {
+    return null;
+  }
+
+  /**
+   * Feedback storage strategy hint.
+   * Returns null by default (feedback not supported).
+   * Override in adapters that support feedback storage.
+   */
+  public get feedbackStrategy(): StrategyHint<FeedbackStorageStrategy> {
+    return null;
   }
 
   /**
