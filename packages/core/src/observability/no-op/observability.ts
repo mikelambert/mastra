@@ -1,6 +1,6 @@
-import type { Mastra } from '..';
-import type { IMastraLogger } from '../logger';
-import type { ObservabilityInstance, ConfigSelectorOptions, ObservabilityEntrypoint, ConfigSelector } from './types';
+import type { Mastra } from '../..';
+import type { IMastraLogger } from '../../logger';
+import type { ObservabilityInstance, ConfigSelectorOptions, ObservabilityEntrypoint, ConfigSelector } from '../types';
 
 export class NoOpObservability implements ObservabilityEntrypoint {
   setMastraContext(_options: { mastra: Mastra }): void {
