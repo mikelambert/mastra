@@ -1,5 +1,86 @@
 # @mastra/client-js
 
+## 1.3.0-alpha.1
+
+### Minor Changes
+
+- Add clone agent feature. Code-defined or stored agents can be cloned into new stored agents via a "Clone" button in the playground or the client SDK: ([#12796](https://github.com/mastra-ai/mastra/pull/12796))
+
+  ```ts
+  const client = new MastraClient();
+  const cloned = await client.getAgent('my-agent').clone({
+    newName: 'My Agent Copy',
+    requestContext: { workspace: 'dev' },
+  });
+  ```
+
+  The clone serializes the agent's full resolved configuration — model, instructions, tools, workflows, sub-agents, memory, input/output processors, and scorers — using the caller's `requestContext` and persists it as a new stored agent.
+
+### Patch Changes
+
+- Fixed multiple issues with stored agents: ([#12790](https://github.com/mastra-ai/mastra/pull/12790))
+  1. **Memory field can now be disabled**: Fixed an issue where the memory field couldn't be set to `null` to disable memory on stored agents. The update endpoint now accepts `memory: null` to explicitly disable memory configuration.
+  2. **Agent-level scorers are now discoverable**: Fixed an issue where scorers attached to code-defined agents (e.g., answer relevancy scorer) were not available in the scorer dropdown for stored agents. The system now automatically registers agent-level scorers with the Mastra instance, making them discoverable through `resolveStoredScorers`.
+  3. **Agent IDs are now derived from names**: Agent IDs are now automatically generated from the agent name using slugification (e.g., "My Cool Agent" becomes "my-cool-agent") instead of using random UUIDs. This makes agent IDs more readable and consistent with code-defined agents.
+
+  **Before:**
+
+  ```typescript
+  // Creating an agent required a manual ID
+  const agent = await client.createStoredAgent({
+    id: crypto.randomUUID(), // Required, resulted in "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    name: 'My Cool Agent',
+    // ...
+  });
+
+  // Couldn't disable memory
+  await client.updateStoredAgent(agentId, {
+    memory: null, // ❌ Would throw validation error
+  });
+
+  // Agent-level scorers weren't available for stored agents
+  // e.g., answer-relevancy-scorer from evalAgent wasn't in the dropdown
+  ```
+
+  **After:**
+
+  ```typescript
+  // ID is auto-generated from name
+  const agent = await client.createStoredAgent({
+    name: 'My Cool Agent',
+    // ...
+  });
+  // agent.id is now "my-cool-agent"
+
+  // Can disable memory
+  await client.updateStoredAgent(agentId, {
+    memory: null, // ✅ Works, disables memory
+  });
+
+  // All agent-level scorers are now available in the dropdown
+  ```
+
+- Steps now support an optional `metadata` property for storing arbitrary key-value data. This metadata is preserved through step serialization and is available in the workflow graph, enabling use cases like UI annotations or custom step categorization. ([#12508](https://github.com/mastra-ai/mastra/pull/12508))
+
+  ```diff
+  import { createStep } from "@mastra/core/workflows";
+  import { z } from "zod";
+
+  const step = createStep({
+    //...step information
+  +  metadata: {
+  +    category: "orders",
+  +    priority: "high",
+  +    version: "1.0.0",
+  +  },
+  });
+  ```
+
+  Metadata values must be serializable (no functions or circular references).
+
+- Updated dependencies [[`717ffab`](https://github.com/mastra-ai/mastra/commit/717ffab42cfd58ff723b5c19ada4939997773004), [`5719fa8`](https://github.com/mastra-ai/mastra/commit/5719fa8880e86e8affe698ec4b3807c7e0e0a06f), [`83cda45`](https://github.com/mastra-ai/mastra/commit/83cda4523e588558466892bff8f80f631a36945a), [`aa95f95`](https://github.com/mastra-ai/mastra/commit/aa95f958b186ae5c9f4219c88e268f5565c277a2), [`fdad759`](https://github.com/mastra-ai/mastra/commit/fdad75939ff008b27625f5ec0ce9c6915d99d9ec), [`e4569c5`](https://github.com/mastra-ai/mastra/commit/e4569c589e00c4061a686c9eb85afe1b7050b0a8), [`7309a85`](https://github.com/mastra-ai/mastra/commit/7309a85427281a8be23f4fb80ca52e18eaffd596), [`99424f6`](https://github.com/mastra-ai/mastra/commit/99424f6862ffb679c4ec6765501486034754a4c2), [`a211248`](https://github.com/mastra-ai/mastra/commit/a21124845b1b1321b6075a8377c341c7f5cda1b6), [`8c1135d`](https://github.com/mastra-ai/mastra/commit/8c1135dfb91b057283eae7ee11f9ec28753cc64f)]:
+  - @mastra/core@1.3.0-alpha.1
+
 ## 1.2.1-alpha.0
 
 ### Patch Changes

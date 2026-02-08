@@ -1,5 +1,148 @@
 # @mastra/core
 
+## 1.3.0-alpha.1
+
+### Minor Changes
+
+- Add clone agent feature. Code-defined or stored agents can be cloned into new stored agents via a "Clone" button in the playground or the client SDK: ([#12796](https://github.com/mastra-ai/mastra/pull/12796))
+
+  ```ts
+  const client = new MastraClient();
+  const cloned = await client.getAgent('my-agent').clone({
+    newName: 'My Agent Copy',
+    requestContext: { workspace: 'dev' },
+  });
+  ```
+
+  The clone serializes the agent's full resolved configuration — model, instructions, tools, workflows, sub-agents, memory, input/output processors, and scorers — using the caller's `requestContext` and persists it as a new stored agent.
+
+- Added dynamic instructions for stored agents. Agent instructions can now be composed from reusable prompt blocks with conditional rules and variable interpolation, enabling a prompt-CMS-like editing experience. ([#12776](https://github.com/mastra-ai/mastra/pull/12776))
+
+  **Instruction blocks** can be mixed in an agent's instructions array:
+  - `text` — static text with `{{variable}}` interpolation
+  - `prompt_block_ref` — reference to a versioned prompt block stored in the database
+  - `prompt_block` — inline prompt block with optional conditional rules
+
+  **Creating a prompt block and using it in a stored agent:**
+
+  ```ts
+  // Create a reusable prompt block
+  const block = await editor.createPromptBlock({
+    id: 'security-rules',
+    name: 'Security Rules',
+    content: "You must verify the user's identity. The user's role is {{user.role}}.",
+    rules: {
+      operator: 'AND',
+      conditions: [{ field: 'user.isAuthenticated', operator: 'equals', value: true }],
+    },
+  });
+
+  // Create a stored agent that references the prompt block
+  await editor.createStoredAgent({
+    id: 'support-agent',
+    name: 'Support Agent',
+    instructions: [
+      { type: 'text', content: 'You are a helpful support agent for {{company}}.' },
+      { type: 'prompt_block_ref', id: 'security-rules' },
+      {
+        type: 'prompt_block',
+        content: 'Always be polite.',
+        rules: { operator: 'AND', conditions: [{ field: 'tone', operator: 'equals', value: 'formal' }] },
+      },
+    ],
+    model: { provider: 'openai', name: 'gpt-4o' },
+  });
+
+  // At runtime, instructions resolve dynamically based on request context
+  const agent = await editor.getStoredAgentById('support-agent');
+  const result = await agent.generate('Help me reset my password', {
+    requestContext: new RequestContext([
+      ['company', 'Acme Corp'],
+      ['user.isAuthenticated', true],
+      ['user.role', 'admin'],
+      ['tone', 'formal'],
+    ]),
+  });
+  ```
+
+  Prompt blocks are versioned — updating a block's content takes effect immediately for all agents referencing it, with no cache clearing required.
+
+- Add native @ai-sdk/groq support to model router. Groq models now use the official AI SDK package instead of falling back to OpenAI-compatible mode. ([#12741](https://github.com/mastra-ai/mastra/pull/12741))
+
+### Patch Changes
+
+- Update provider registry and model documentation with latest models and providers ([`717ffab`](https://github.com/mastra-ai/mastra/commit/717ffab42cfd58ff723b5c19ada4939997773004))
+
+- Fixed multiple issues with stored agents: ([#12790](https://github.com/mastra-ai/mastra/pull/12790))
+  1. **Memory field can now be disabled**: Fixed an issue where the memory field couldn't be set to `null` to disable memory on stored agents. The update endpoint now accepts `memory: null` to explicitly disable memory configuration.
+  2. **Agent-level scorers are now discoverable**: Fixed an issue where scorers attached to code-defined agents (e.g., answer relevancy scorer) were not available in the scorer dropdown for stored agents. The system now automatically registers agent-level scorers with the Mastra instance, making them discoverable through `resolveStoredScorers`.
+  3. **Agent IDs are now derived from names**: Agent IDs are now automatically generated from the agent name using slugification (e.g., "My Cool Agent" becomes "my-cool-agent") instead of using random UUIDs. This makes agent IDs more readable and consistent with code-defined agents.
+
+  **Before:**
+
+  ```typescript
+  // Creating an agent required a manual ID
+  const agent = await client.createStoredAgent({
+    id: crypto.randomUUID(), // Required, resulted in "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    name: 'My Cool Agent',
+    // ...
+  });
+
+  // Couldn't disable memory
+  await client.updateStoredAgent(agentId, {
+    memory: null, // ❌ Would throw validation error
+  });
+
+  // Agent-level scorers weren't available for stored agents
+  // e.g., answer-relevancy-scorer from evalAgent wasn't in the dropdown
+  ```
+
+  **After:**
+
+  ```typescript
+  // ID is auto-generated from name
+  const agent = await client.createStoredAgent({
+    name: 'My Cool Agent',
+    // ...
+  });
+  // agent.id is now "my-cool-agent"
+
+  // Can disable memory
+  await client.updateStoredAgent(agentId, {
+    memory: null, // ✅ Works, disables memory
+  });
+
+  // All agent-level scorers are now available in the dropdown
+  ```
+
+- Fixed sub-agent tool approval and suspend events not being surfaced to the parent agent stream. This enables proper suspend/resume workflows and approval handling when nested agents require tool approvals. ([#12732](https://github.com/mastra-ai/mastra/pull/12732))
+
+  Related to issue `#12552`.
+
+- Fixed Moonshot AI (moonshotai and moonshotai-cn) models using the wrong base URL. The Anthropic-compatible endpoint was not being applied, causing API calls to fail with an upstream LLM error. ([#12750](https://github.com/mastra-ai/mastra/pull/12750))
+
+- Fixed messages not being persisted to the database when using the stream-legacy endpoint. The thread is now saved to the database immediately when created, preventing a race condition where storage backends like PostgreSQL would reject message inserts because the thread didn't exist yet. Fixes #12566. ([#12774](https://github.com/mastra-ai/mastra/pull/12774))
+
+- Steps now support an optional `metadata` property for storing arbitrary key-value data. This metadata is preserved through step serialization and is available in the workflow graph, enabling use cases like UI annotations or custom step categorization. ([#12508](https://github.com/mastra-ai/mastra/pull/12508))
+
+  ```diff
+  import { createStep } from "@mastra/core/workflows";
+  import { z } from "zod";
+
+  const step = createStep({
+    //...step information
+  +  metadata: {
+  +    category: "orders",
+  +    priority: "high",
+  +    version: "1.0.0",
+  +  },
+  });
+  ```
+
+  Metadata values must be serializable (no functions or circular references).
+
+- Fixed tool input validation failing when LLMs return stringified JSON for array or object parameters. Some models (e.g., GLM4.7) send `"[\"file.py\"]"` instead of `["file.py"]` for array fields, which caused Zod validation to reject the input. The validation pipeline now automatically detects and parses stringified JSON values when the schema expects an array or object. (GitHub #12757) ([#12771](https://github.com/mastra-ai/mastra/pull/12771))
+
 ## 1.2.1-alpha.0
 
 ### Patch Changes
